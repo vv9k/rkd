@@ -1,9 +1,6 @@
-use std::fs;
-use std::fs::File;
-use std::io::Read;
-use std::mem;
-use std::path::{Path, PathBuf};
-use std::thread;
+use super::*;
+use std::clone::Clone;
+use std::sync::Arc;
 
 const DEV_INP: &'static str = "/dev/input/";
 pub const INPUT_DEVICE_LIST: &'static str = "/proc/bus/input/devices";
@@ -20,129 +17,7 @@ const KEY_RELEASE: i32 = 0;
 const KEY_PRESS: i32 = 1;
 
 #[derive(Debug)]
-#[rustfmt::skip]
-pub enum Key {
-    Num0,
-    Num1,
-    Num2,
-    Num3,
-    Num4,
-    Num5,
-    Num6,
-    Num7,
-    Num8,
-    Num9,
-    Dash,
-    Tick,
-    Eq_,
-    Dot,
-    Comma,
-    Slash,
-    SemiColon,
-    Apostrophe,
-    BackSlash,
-    LSquareBracket, RSquareBracket,
-    RAlt, LAlt,
-    RCtrl, LCtrl,
-    RShift, LShift,
-    Super,
-    Esc,
-    Backspace,
-    Return,
-    Space,
-    Tab,
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-    Up, Down, Left, Right,
-    UK
-}
-impl Key {
-    pub fn from_code(code: u16) -> Self {
-        use self::Key::*;
-        match code {
-            1 => Esc,
-            2 => Num1,
-            3 => Num2,
-            4 => Num3,
-            5 => Num4,
-            6 => Num5,
-            7 => Num6,
-            8 => Num7,
-            9 => Num8,
-            10 => Num9,
-            11 => Num0,
-            12 => Dash,
-            13 => Eq_,
-            14 => Backspace,
-            15 => Tab,
-            16 => Q,
-            17 => W,
-            18 => E,
-            19 => R,
-            20 => T,
-            21 => Y,
-            22 => U,
-            23 => I,
-            24 => O,
-            25 => P,
-            26 => LSquareBracket,
-            27 => RSquareBracket,
-            28 => Return,
-            29 => LCtrl,
-            30 => A,
-            31 => S,
-            32 => D,
-            33 => F,
-            34 => G,
-            35 => H,
-            36 => J,
-            37 => K,
-            38 => L,
-            39 => SemiColon,
-            40 => Apostrophe,
-            41 => Tick,
-            42 => LShift,
-            43 => BackSlash,
-            44 => Z,
-            45 => X,
-            46 => C,
-            47 => V,
-            48 => B,
-            49 => N,
-            50 => M,
-            51 => Comma,
-            52 => Dot,
-            53 => Slash,
-            54 => RShift,
-            56 => LAlt,
-            57 => Space,
-            59 => F1,
-            60 => F2,
-            61 => F3,
-            62 => F4,
-            63 => F5,
-            64 => F6,
-            65 => F7,
-            66 => F8,
-            67 => F9,
-            68 => F10,
-            69 => F11,
-            70 => F12,
-            97 => RCtrl,
-            100 => RAlt,
-            103 => Up,
-            105 => Left,
-            106 => Right,
-            108 => Down,
-            125 => Super,
-            _ => UK,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Keyboard {
+pub struct Keyboard {
     handlers: Vec<String>,
     name: String,
 }
@@ -198,28 +73,36 @@ impl Keyboard {
     }
 }
 
-pub fn read_input_devices<P: AsRef<Path>>(f: P) {
+pub fn run_rdk(keybindings: Keybindings) {
+    let keyboards = read_input_devices(INPUT_DEVICE_LIST);
+    let kb = Arc::new(keybindings);
+    for k in keyboards {
+        let handlers = k.handlers();
+        for h in handlers {
+            let _kb = kb.clone();
+            let handle = thread::spawn(|| {
+                listen(h.expect("Error: failed to open input file"), _kb);
+            });
+            handle.join().expect("test");
+        }
+        println!("{:?}", k);
+    }
+}
+
+pub fn read_input_devices<P: AsRef<Path>>(f: P) -> Vec<Keyboard> {
     let device_list = fs::read_to_string(f.as_ref()).unwrap();
     let device_list = device_list.split("\n\n");
 
     // All devices with EV=120013
-    let keyboards = device_list.filter(|dev| dev.contains(KEYBOARD_INPUT_ID));
-    for k in keyboards {
-        let x = Keyboard::new(&k);
-        let handlers = x.handlers();
-        for h in handlers {
-            let handle = thread::spawn(|| {
-                listen(h.expect("Error: failed to open input file"));
-            });
-            handle.join().expect("test");
-        }
-        println!("{:?}", x);
-    }
+    device_list
+        .filter(|dev| dev.contains(KEYBOARD_INPUT_ID))
+        .map(|k| Keyboard::new(&k))
+        .collect()
 }
 
-pub fn listen(mut event_file: File) {
+pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
     let mut buf: [u8; SIZE_OF_INPUT_EVENT] = unsafe { mem::zeroed() };
-    let mut shift_pressed = 0;
+    let mut key_combination: Vec<Key> = Vec::new();
     loop {
         let num_of_bytes = event_file
             .read(&mut buf)
@@ -232,27 +115,28 @@ pub fn listen(mut event_file: File) {
         let event: InputEvent = unsafe { mem::transmute(buf) };
         if event.is_key_event() {
             if event.is_key_press() {
-                if event.is_shift() {
-                    shift_pressed += 1;
-                }
-
                 let k = event.as_enum();
-
-                //if text == "<UK>" {
-                //
-                //println!(
-                //"<UK>(code: {}, shift_pressed: {})",
-                //event.code, shift_pressed
-                //);
-                //}
-                println!("{:?} {}", k, event.code);
+                key_combination.push(k);
             } else if event.is_key_release() {
-                let k = event.as_enum();
-                println!("releasing {:?}", k);
-                if event.is_shift() {
-                    shift_pressed -= 1;
+                let mut remove_idx = 0;
+                let mut remove = false;
+                for (i, key) in key_combination.iter().enumerate() {
+                    if *key == event.as_enum() {
+                        remove_idx = i;
+                        remove = true;
+                        break;
+                    }
+                }
+                if remove {
+                    key_combination.remove(remove_idx);
                 }
             }
+            for kb in keybindings.iter() {
+                if kb.key_combination == key_combination {
+                    println!("{}", kb.cmd);
+                }
+            }
+            println!("current combination: {:?}", &key_combination);
         }
     }
 }
