@@ -15,47 +15,131 @@ const HANDLER_PREFIX: &'static str = "H: Handlers=";
 // Each input event consist of exactly 24 bytes (see InputEvent struct)
 const SIZE_OF_INPUT_EVENT: usize = mem::size_of::<InputEvent>();
 
-const TOTAL_KEYS: u16 = 126;
 const KEY_EV: u16 = 1;
 const KEY_RELEASE: i32 = 0;
 const KEY_PRESS: i32 = 1;
-const KEY_LEFTSHIFT: u16 = 42;
-const KEY_RIGHTSHIFT: u16 = 54;
-// Unknown key
-const UK: &'static str = "<UK>";
 
+#[derive(Debug)]
 #[rustfmt::skip]
-const KEY_MAP: [&'static str; TOTAL_KEYS as usize] = [
-    UK, "<ESC>", "1", "2", "3", "4", "5", "6", "7", "8",
-    "9", "0", "-", "=", "<Backspace>", "<Tab>", "q", "w", "e", "r",
-    "t", "y", "u", "i", "o", "p", "[", "]", "<Enter>", "<LCtrl>",
-    "a", "s", "d", "f", "g", "h", "j", "k", "l", ";",
-    "'", "`", "<LShift>", "\\", "z", "x", "c", "v", "b", "n",
-    "m", ",", ".", "/", "<RShift>", "<KP*>", "<LAlt>", " ", "<CapsLock>", "<F1>",
-    "<F2>", "<F3>", "<F4>", "<F5>", "<F6>", "<F7>", "<F8>", "<F9>", "<F10>",
-    "<NumLock>", "<ScrollLock>", "<KP7>", "<KP8>", "<KP9>", "<KP->", "<KP4>", "<KP5>", "<KP6>", "<KP+>",
-    "<KP1>", "<KP2>", "<KP3>", "<KP0>","<KP.>", UK, UK, UK, "<F11>", "<F12>",
-    UK, UK, UK, UK, UK, UK, UK, "<KPEnter>", "<RCtrl>", "<KP/>",
-    "<SysRq>", "<RAlt>", UK, "<Home>", "<Up>", "<PageUp>", "<Left>", "<Right>", "<End>", "<Down>",
-    "<PageDown>", "<Insert>", "<Delete>", UK, UK, UK, UK, UK, UK, UK,
-    "<Pause>", UK, UK, UK, UK, UK, "<Super>",
-];
-#[rustfmt::skip]
-const SHIFT_KEY_MAP: [&'static str; TOTAL_KEYS as usize] = [
-    UK, "<ESC>", "!", "@", "#", "$", "%", "^", "&", "*",
-    "(", ")", "_", "+", "<Backspace>", "<Tab>", "Q", "W", "E", "R",
-    "T", "Y", "U", "I", "O", "P", "{", "}", "<Enter>", "<LCtrl>",
-    "A", "S", "D", "F", "G", "H", "J", "K", "L", ":",
-    "\"", "~", "<LShift>", "|", "Z", "X", "C", "V", "B", "N",
-    "M", "<", ">", "?", "<RShift>", "<KP*>", "<LAlt>", " ", "<CapsLock>", "<F1>",
-    "<F2>", "<F3>", "<F4>", "<F5>", "<F6>", "<F7>", "<F8>", "<F9>", "<F10>",
-    "<NumLock>", "<ScrollLock>", "<KP7>", "<KP8>", "<KP9>", "<KP->", "<KP4>", "<KP5>", "<KP6>", "<KP+>",
-    "<KP1>", "<KP2>", "<KP3>", "<KP0>", "<KP.>", UK, UK, UK, "<F11>", "<F12>",
-    UK, UK, UK, UK, UK, UK, UK, "<KPEnter>", "<RCtrl>", "<KP/>",
-    "<SysRq>", "<RAlt>", UK, "<Home>", "<Up>", "<PageUp>", "<Left>", "<Right>", "<End>", "<Down>",
-    "<PageDown>", "<Insert>", "<Delete>", UK, UK, UK, UK, UK, UK, UK,
-    UK, UK, UK, UK, UK, UK, UK,
-];
+pub enum Key {
+    Num0,
+    Num1,
+    Num2,
+    Num3,
+    Num4,
+    Num5,
+    Num6,
+    Num7,
+    Num8,
+    Num9,
+    Dash,
+    Tick,
+    Eq_,
+    Dot,
+    Comma,
+    Slash,
+    SemiColon,
+    Apostrophe,
+    BackSlash,
+    LSquareBracket, RSquareBracket,
+    RAlt, LAlt,
+    RCtrl, LCtrl,
+    RShift, LShift,
+    Super,
+    Esc,
+    Backspace,
+    Return,
+    Space,
+    Tab,
+    A, B, C, D, E, F, G, H, I, J, K, L, M,
+    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    Up, Down, Left, Right,
+    UK
+}
+impl Key {
+    pub fn from_code(code: u16) -> Self {
+        use self::Key::*;
+        match code {
+            1 => Esc,
+            2 => Num1,
+            3 => Num2,
+            4 => Num3,
+            5 => Num4,
+            6 => Num5,
+            7 => Num6,
+            8 => Num7,
+            9 => Num8,
+            10 => Num9,
+            11 => Num0,
+            12 => Dash,
+            13 => Eq_,
+            14 => Backspace,
+            15 => Tab,
+            16 => Q,
+            17 => W,
+            18 => E,
+            19 => R,
+            20 => T,
+            21 => Y,
+            22 => U,
+            23 => I,
+            24 => O,
+            25 => P,
+            26 => LSquareBracket,
+            27 => RSquareBracket,
+            28 => Return,
+            29 => LCtrl,
+            30 => A,
+            31 => S,
+            32 => D,
+            33 => F,
+            34 => G,
+            35 => H,
+            36 => J,
+            37 => K,
+            38 => L,
+            39 => SemiColon,
+            40 => Apostrophe,
+            41 => Tick,
+            42 => LShift,
+            43 => BackSlash,
+            44 => Z,
+            45 => X,
+            46 => C,
+            47 => V,
+            48 => B,
+            49 => N,
+            50 => M,
+            51 => Comma,
+            52 => Dot,
+            53 => Slash,
+            54 => RShift,
+            56 => LAlt,
+            57 => Space,
+            59 => F1,
+            60 => F2,
+            61 => F3,
+            62 => F4,
+            63 => F5,
+            64 => F6,
+            65 => F7,
+            66 => F8,
+            67 => F9,
+            68 => F10,
+            69 => F11,
+            70 => F12,
+            97 => RCtrl,
+            100 => RAlt,
+            103 => Up,
+            105 => Left,
+            106 => Right,
+            108 => Down,
+            125 => Super,
+            _ => UK,
+        }
+    }
+}
 
 #[derive(Debug)]
 struct Keyboard {
@@ -152,35 +236,24 @@ pub fn listen(mut event_file: File) {
                     shift_pressed += 1;
                 }
 
-                let text = get_key_text(event.code, shift_pressed);
-            //if text == "<UK>" {
-            //
-            //println!(
-            //"<UK>(code: {}, shift_pressed: {})",
-            //event.code, shift_pressed
-            //);
-            //}
-            //println!("{}", text);
+                let k = event.as_enum();
+
+                //if text == "<UK>" {
+                //
+                //println!(
+                //"<UK>(code: {}, shift_pressed: {})",
+                //event.code, shift_pressed
+                //);
+                //}
+                println!("{:?} {}", k, event.code);
             } else if event.is_key_release() {
+                let k = event.as_enum();
+                println!("releasing {:?}", k);
                 if event.is_shift() {
                     shift_pressed -= 1;
                 }
             }
         }
-    }
-}
-
-pub fn get_key_text(code: u16, shift_pressed: u8) -> &'static str {
-    let arr = if shift_pressed != 0 {
-        SHIFT_KEY_MAP
-    } else {
-        KEY_MAP
-    };
-
-    if code < TOTAL_KEYS {
-        return arr[code as usize];
-    } else {
-        return UK;
     }
 }
 
@@ -195,7 +268,28 @@ pub struct InputEvent {
 }
 impl InputEvent {
     pub fn is_shift(&self) -> bool {
-        self.code == KEY_LEFTSHIFT || self.code == KEY_RIGHTSHIFT
+        match self.as_enum() {
+            Key::LShift | Key::RShift => true,
+            _ => false,
+        }
+    }
+    pub fn is_ctrl(&self) -> bool {
+        match self.as_enum() {
+            Key::LCtrl | Key::RCtrl => true,
+            _ => false,
+        }
+    }
+    pub fn is_alt(&self) -> bool {
+        match self.as_enum() {
+            Key::LAlt | Key::RAlt => true,
+            _ => false,
+        }
+    }
+    pub fn is_super(&self) -> bool {
+        match self.as_enum() {
+            Key::Super => true,
+            _ => false,
+        }
     }
     pub fn is_key_event(&self) -> bool {
         self.type_ == KEY_EV
@@ -205,5 +299,8 @@ impl InputEvent {
     }
     pub fn is_key_release(&self) -> bool {
         self.value == KEY_RELEASE
+    }
+    pub fn as_enum(&self) -> Key {
+        Key::from_code(self.code)
     }
 }
