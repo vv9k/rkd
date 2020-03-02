@@ -19,7 +19,7 @@ const KEY_EV: u16 = 1;
 const KEY_RELEASE: i32 = 0;
 const KEY_PRESS: i32 = 1;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Keyboard {
     handlers: Vec<String>,
     name: String,
@@ -203,5 +203,31 @@ impl InputEvent {
     }
     pub fn as_enum(&self) -> Key {
         Key::from_code(self.code)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parses_keyboard() {
+        let kb_txt = "I: Bus=0003 Vendor=046d Product=c33a Version=0111
+N: Name=\"Logitech G413 Carbon Mechanical Gaming Keyboard\"
+P: Phys=usb-0000:0b:00.3-4/input0
+S:
+Sysfs=/devices/pci0000:00/0000:00:08.1/0000:0b:00.3/usb3/3-4/3-4:1.0/0003:046D:C33A.0001/input/input2
+U: Uniq=188338553234
+H: Handlers=sysrq kbd event2 leds
+B: PROP=0
+B: EV=120013
+B: KEY=1000000000007 ff9f207ac14057ff febeffdfffefffff fffffffffffffffe
+B: MSC=10
+B: LED=7";
+        let kb = Keyboard {
+            handlers: vec!["event2".to_string()],
+            name: "Logitech G413 Carbon Mechanical Gaming Keyboard".to_string(),
+        };
+        let parsed_kb = Keyboard::new(&kb_txt);
+        assert_eq!(kb, parsed_kb);
     }
 }
