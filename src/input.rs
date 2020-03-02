@@ -24,7 +24,9 @@ impl Keyboard {
     //
     // In this example the file with all interesting events will be located in:
     //   /dev/input/event2
-    fn new(inp: &str) -> Keyboard {
+    pub fn new(inp: &str) -> Keyboard {
+        info!("Parsing keyboard object");
+        trace!("From input:\n{}", &inp);
         let lines = inp.split('\n');
         let mut handlers = Vec::new();
         let mut name = String::new();
@@ -41,49 +43,26 @@ impl Keyboard {
                     .collect();
             }
         }
-
+        info!("Found keyboard (name={}, handlers={:?})", name, &handlers);
         Keyboard { handlers, name }
     }
     // Attempts to open all event handler files
-    fn handlers(&self) -> Vec<Result<File, std::io::Error>> {
+    pub fn handlers(&self) -> Vec<Result<File, std::io::Error>> {
+        info!("Getting event file handles");
         self.handlers
             .iter()
             .map(|h| {
                 let mut path = PathBuf::from(DEV_INP);
                 path.push(h);
+                trace!("Opening {}", path.as_path().display());
                 File::open(path)
             })
             .collect()
     }
 }
 
-pub fn run_rdk(keybindings: Keybindings) {
-    match read_input_devices() {
-        Ok(keyboards) => {
-            let kb = Arc::new(keybindings);
-            for k in keyboards {
-                let handlers = k.handlers();
-                let mut thr_handles = Vec::new();
-                for h in handlers {
-                    let _kb = kb.clone();
-                    let handle = thread::spawn(|| {
-                        listen(h.expect("Error: failed to open input file"), _kb);
-                    });
-                    thr_handles.push(handle);
-                }
-                for h in thr_handles {
-                    h.join().expect("task failed successfully");
-                }
-            }
-        }
-        Err(e) => eprintln!(
-            "Error: failed while reading '{}' file - {}",
-            INPUT_DEVICE_LIST, e
-        ),
-    }
-}
-
 pub fn read_input_devices() -> Result<Vec<Keyboard>, std::io::Error> {
+    info!("Reading device list from {}", INPUT_DEVICE_LIST);
     let device_list = fs::read_to_string(INPUT_DEVICE_LIST)?;
 
     // All devices with EV=120013
@@ -106,32 +85,38 @@ pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
             panic!("Error while reading from device file");
         }
 
-        if let Ok(event) = InputEvent::new(&buf) {
-            if event.is_key_event() {
-                if event.is_key_press() {
-                    let k = event.as_enum();
-                    key_combination.push(k);
-                } else if event.is_key_release() {
-                    let mut remove_idx = 0;
-                    let mut remove = false;
-                    for (i, key) in key_combination.iter().enumerate() {
-                        if *key == event.as_enum() {
-                            remove_idx = i;
-                            remove = true;
-                            break;
+        match InputEvent::new(&buf) {
+            Ok(event) => {
+                if event.is_key_event() {
+                    if event.is_key_press() {
+                        let k = event.as_enum();
+                        trace!("Pressed {:?}", k);
+                        key_combination.push(k);
+                    } else if event.is_key_release() {
+                        let k = event.as_enum();
+                        trace!("Released {:?}", k);
+                        let mut remove_idx = 0;
+                        let mut remove = false;
+                        for (i, key) in key_combination.iter().enumerate() {
+                            if *key == k {
+                                remove_idx = i;
+                                remove = true;
+                                break;
+                            }
+                        }
+                        if remove {
+                            key_combination.remove(remove_idx);
                         }
                     }
-                    if remove {
-                        key_combination.remove(remove_idx);
+                    for kb in keybindings.iter() {
+                        if kb.key_combination == key_combination {
+                            info!("running cmd {}", kb.cmd);
+                        }
                     }
+                    trace!("Current key combination: {:?}", key_combination);
                 }
-                for kb in keybindings.iter() {
-                    if kb.key_combination == key_combination {
-                        println!("{}", kb.cmd);
-                    }
-                }
-                println!("current combination: {:?}", &key_combination);
             }
+            Err(e) => error!("Error: failed parsing InputEvent - {}", e),
         }
     }
 }

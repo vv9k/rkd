@@ -5,6 +5,7 @@ use crate::config::*;
 use crate::input::*;
 use crate::key::*;
 use byteorder::{LittleEndian, ReadBytesExt};
+use log::{error, info, trace};
 use std::clone::Clone;
 use std::convert::TryInto;
 use std::fs;
@@ -30,3 +31,31 @@ const SIZE_OF_ISIZE: usize = mem::size_of::<isize>();
 const KEY_EV: u16 = 1;
 const KEY_RELEASE: i32 = 0;
 const KEY_PRESS: i32 = 1;
+
+pub fn run_rkd(keybindings: Keybindings) {
+    info!("Starting rkd");
+    trace!("{:?}", &keybindings);
+    match read_input_devices() {
+        Ok(keyboards) => {
+            let kb = Arc::new(keybindings);
+            for k in keyboards {
+                let handlers = k.handlers();
+                let mut thr_handles = Vec::new();
+                for h in handlers {
+                    let _kb = kb.clone();
+                    let handle = thread::spawn(|| {
+                        listen(h.expect("Error: failed to open input file"), _kb);
+                    });
+                    thr_handles.push(handle);
+                }
+                for h in thr_handles {
+                    h.join().expect("task failed successfully");
+                }
+            }
+        }
+        Err(e) => eprintln!(
+            "Error: failed while reading '{}' file - {}",
+            INPUT_DEVICE_LIST, e
+        ),
+    }
+}
