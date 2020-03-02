@@ -1,5 +1,8 @@
 use super::*;
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::clone::Clone;
+use std::convert::TryInto;
+use std::io::Cursor;
 use std::sync::Arc;
 
 const DEV_INP: &'static str = "/dev/input/";
@@ -101,7 +104,7 @@ pub fn read_input_devices<P: AsRef<Path>>(f: P) -> Vec<Keyboard> {
 }
 
 pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
-    let mut buf: [u8; SIZE_OF_INPUT_EVENT] = unsafe { mem::zeroed() };
+    let mut buf: [u8; SIZE_OF_INPUT_EVENT] = [0; SIZE_OF_INPUT_EVENT];
     let mut key_combination: Vec<Key> = Vec::new();
     loop {
         let num_of_bytes = event_file
@@ -112,31 +115,35 @@ pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
             panic!("Error while reading from device file");
         }
 
-        let event: InputEvent = unsafe { mem::transmute(buf) };
-        if event.is_key_event() {
-            if event.is_key_press() {
-                let k = event.as_enum();
-                key_combination.push(k);
-            } else if event.is_key_release() {
-                let mut remove_idx = 0;
-                let mut remove = false;
-                for (i, key) in key_combination.iter().enumerate() {
-                    if *key == event.as_enum() {
-                        remove_idx = i;
-                        remove = true;
-                        break;
+        match InputEvent::new(&buf) {
+            Ok(event) => {
+                if event.is_key_event() {
+                    if event.is_key_press() {
+                        let k = event.as_enum();
+                        key_combination.push(k);
+                    } else if event.is_key_release() {
+                        let mut remove_idx = 0;
+                        let mut remove = false;
+                        for (i, key) in key_combination.iter().enumerate() {
+                            if *key == event.as_enum() {
+                                remove_idx = i;
+                                remove = true;
+                                break;
+                            }
+                        }
+                        if remove {
+                            key_combination.remove(remove_idx);
+                        }
                     }
-                }
-                if remove {
-                    key_combination.remove(remove_idx);
-                }
-            }
-            for kb in keybindings.iter() {
-                if kb.key_combination == key_combination {
-                    println!("{}", kb.cmd);
+                    for kb in keybindings.iter() {
+                        if kb.key_combination == key_combination {
+                            println!("{}", kb.cmd);
+                        }
+                    }
+                    println!("current combination: {:?}", &key_combination);
                 }
             }
-            println!("current combination: {:?}", &key_combination);
+            Err(e) => eprintln!("Error - {}", e),
         }
     }
 }
@@ -151,6 +158,16 @@ pub struct InputEvent {
     pub value: i32,
 }
 impl InputEvent {
+    pub fn new(buf: &[u8]) -> Result<InputEvent, std::io::Error> {
+        let mut rdr = Cursor::new(&buf);
+        Ok(InputEvent {
+            _tv_sec: rdr.read_int::<LittleEndian>(8)?.try_into().unwrap(),
+            _tv_usec: rdr.read_int::<LittleEndian>(8)?.try_into().unwrap(),
+            type_: rdr.read_u16::<LittleEndian>()?,
+            code: rdr.read_u16::<LittleEndian>()?,
+            value: rdr.read_i32::<LittleEndian>()?,
+        })
+    }
     pub fn is_shift(&self) -> bool {
         match self.as_enum() {
             Key::LShift | Key::RShift => true,
