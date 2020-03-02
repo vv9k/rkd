@@ -1,7 +1,4 @@
-use self::key::Key;
 use super::*;
-use std::fs;
-use std::path::Path;
 
 #[derive(Debug)]
 pub struct Keybinding {

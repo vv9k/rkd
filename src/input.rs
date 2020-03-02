@@ -1,23 +1,4 @@
 use super::*;
-use byteorder::{LittleEndian, ReadBytesExt};
-use std::clone::Clone;
-use std::convert::TryInto;
-use std::io::Cursor;
-use std::sync::Arc;
-
-const DEV_INP: &'static str = "/dev/input/";
-pub const INPUT_DEVICE_LIST: &'static str = "/proc/bus/input/devices";
-// When reading the INPUT_DEVICE_LIST file all keyboard devices have
-// EV=120013
-const KEYBOARD_INPUT_ID: &'static str = "120013";
-const NAME_PREFIX: &'static str = "N: Name=\"";
-const HANDLER_PREFIX: &'static str = "H: Handlers=";
-// Each input event consist of exactly 24 bytes (see InputEvent struct)
-const SIZE_OF_INPUT_EVENT: usize = mem::size_of::<InputEvent>();
-
-const KEY_EV: u16 = 1;
-const KEY_RELEASE: i32 = 0;
-const KEY_PRESS: i32 = 1;
 
 #[derive(Debug, PartialEq)]
 pub struct Keyboard {
@@ -77,30 +58,40 @@ impl Keyboard {
 }
 
 pub fn run_rdk(keybindings: Keybindings) {
-    let keyboards = read_input_devices(INPUT_DEVICE_LIST);
-    let kb = Arc::new(keybindings);
-    for k in keyboards {
-        let handlers = k.handlers();
-        for h in handlers {
-            let _kb = kb.clone();
-            let handle = thread::spawn(|| {
-                listen(h.expect("Error: failed to open input file"), _kb);
-            });
-            handle.join().expect("test");
+    match read_input_devices() {
+        Ok(keyboards) => {
+            let kb = Arc::new(keybindings);
+            for k in keyboards {
+                let handlers = k.handlers();
+                let mut thr_handles = Vec::new();
+                for h in handlers {
+                    let _kb = kb.clone();
+                    let handle = thread::spawn(|| {
+                        listen(h.expect("Error: failed to open input file"), _kb);
+                    });
+                    thr_handles.push(handle);
+                }
+                for h in thr_handles {
+                    h.join().expect("task failed successfully");
+                }
+            }
         }
-        println!("{:?}", k);
+        Err(e) => eprintln!(
+            "Error: failed while reading '{}' file - {}",
+            INPUT_DEVICE_LIST, e
+        ),
     }
 }
 
-pub fn read_input_devices<P: AsRef<Path>>(f: P) -> Vec<Keyboard> {
-    let device_list = fs::read_to_string(f.as_ref()).unwrap();
-    let device_list = device_list.split("\n\n");
+pub fn read_input_devices() -> Result<Vec<Keyboard>, std::io::Error> {
+    let device_list = fs::read_to_string(INPUT_DEVICE_LIST)?;
 
     // All devices with EV=120013
-    device_list
+    Ok(device_list
+        .split("\n\n")
         .filter(|dev| dev.contains(KEYBOARD_INPUT_ID))
         .map(|k| Keyboard::new(&k))
-        .collect()
+        .collect())
 }
 
 pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
@@ -115,35 +106,32 @@ pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
             panic!("Error while reading from device file");
         }
 
-        match InputEvent::new(&buf) {
-            Ok(event) => {
-                if event.is_key_event() {
-                    if event.is_key_press() {
-                        let k = event.as_enum();
-                        key_combination.push(k);
-                    } else if event.is_key_release() {
-                        let mut remove_idx = 0;
-                        let mut remove = false;
-                        for (i, key) in key_combination.iter().enumerate() {
-                            if *key == event.as_enum() {
-                                remove_idx = i;
-                                remove = true;
-                                break;
-                            }
-                        }
-                        if remove {
-                            key_combination.remove(remove_idx);
+        if let Ok(event) = InputEvent::new(&buf) {
+            if event.is_key_event() {
+                if event.is_key_press() {
+                    let k = event.as_enum();
+                    key_combination.push(k);
+                } else if event.is_key_release() {
+                    let mut remove_idx = 0;
+                    let mut remove = false;
+                    for (i, key) in key_combination.iter().enumerate() {
+                        if *key == event.as_enum() {
+                            remove_idx = i;
+                            remove = true;
+                            break;
                         }
                     }
-                    for kb in keybindings.iter() {
-                        if kb.key_combination == key_combination {
-                            println!("{}", kb.cmd);
-                        }
+                    if remove {
+                        key_combination.remove(remove_idx);
                     }
-                    println!("current combination: {:?}", &key_combination);
                 }
+                for kb in keybindings.iter() {
+                    if kb.key_combination == key_combination {
+                        println!("{}", kb.cmd);
+                    }
+                }
+                println!("current combination: {:?}", &key_combination);
             }
-            Err(e) => eprintln!("Error - {}", e),
         }
     }
 }
@@ -161,8 +149,14 @@ impl InputEvent {
     pub fn new(buf: &[u8]) -> Result<InputEvent, std::io::Error> {
         let mut rdr = Cursor::new(&buf);
         Ok(InputEvent {
-            _tv_sec: rdr.read_int::<LittleEndian>(8)?.try_into().unwrap(),
-            _tv_usec: rdr.read_int::<LittleEndian>(8)?.try_into().unwrap(),
+            _tv_sec: rdr
+                .read_int::<LittleEndian>(SIZE_OF_ISIZE)?
+                .try_into()
+                .unwrap(),
+            _tv_usec: rdr
+                .read_int::<LittleEndian>(SIZE_OF_ISIZE)?
+                .try_into()
+                .unwrap(),
             type_: rdr.read_u16::<LittleEndian>()?,
             code: rdr.read_u16::<LittleEndian>()?,
             value: rdr.read_i32::<LittleEndian>()?,
