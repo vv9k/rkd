@@ -73,7 +73,7 @@ pub fn read_input_devices() -> Result<Vec<Keyboard>, std::io::Error> {
         .collect())
 }
 
-pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
+pub fn listen(mut event_file: File, keybindings: Arc<Mutex<Keybindings>>) {
     let mut buf: [u8; SIZE_OF_INPUT_EVENT] = [0; SIZE_OF_INPUT_EVENT];
     let mut key_combination: Vec<Key> = Vec::new();
     loop {
@@ -108,9 +108,12 @@ pub fn listen(mut event_file: File, keybindings: Arc<Keybindings>) {
                             key_combination.remove(remove_idx);
                         }
                     }
-                    for kb in keybindings.iter() {
-                        if kb.key_combination == key_combination {
-                            info!("running cmd {}", kb.cmd);
+                    let mut keybindings = keybindings.lock().unwrap();
+                    for kb in keybindings.iter_mut() {
+                        let is_key_combo = kb.key_combination == key_combination;
+                        if is_key_combo {
+                            info!("running cmd {:?}", kb.exec);
+                            kb.exec.run().expect("failed to execute cmd");
                         }
                     }
                     trace!("Current key combination: {:?}", key_combination);

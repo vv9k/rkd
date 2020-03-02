@@ -8,13 +8,12 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use log::{error, info, trace};
 use std::clone::Clone;
 use std::convert::TryInto;
-use std::fs;
-use std::fs::File;
-use std::io::Cursor;
-use std::io::Read;
+use std::fs::{self, File};
+use std::io::{self, Cursor, Read};
 use std::mem;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::process::{Child, Command};
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 const DEV_INP: &'static str = "/dev/input/";
@@ -37,7 +36,7 @@ pub fn run_rkd(keybindings: Keybindings) {
     trace!("{:?}", &keybindings);
     match read_input_devices() {
         Ok(keyboards) => {
-            let kb = Arc::new(keybindings);
+            let kb = Arc::new(Mutex::new(keybindings));
             for k in keyboards {
                 let handlers = k.handlers();
                 let mut thr_handles = Vec::new();
