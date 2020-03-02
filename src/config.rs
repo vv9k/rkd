@@ -1,15 +1,36 @@
 use super::*;
 
 #[derive(Debug)]
+pub struct Exec {
+    cmd: Command,
+    args: Vec<String>,
+}
+impl Exec {
+    pub fn new<S: AsRef<str>>(cmd: S) -> Option<Exec> {
+        let mut _cmd = cmd.as_ref().split(' ');
+        if let Some(cmd) = _cmd.next() {
+            return Some(Exec {
+                cmd: Command::new(cmd),
+                args: _cmd.map(|arg| arg.to_string()).collect(),
+            });
+        }
+        None
+    }
+    pub fn run(&mut self) -> io::Result<Child> {
+        self.cmd.args(&self.args).spawn()
+    }
+}
+
+#[derive(Debug)]
 pub struct Keybinding {
     pub key_combination: Vec<Key>,
-    pub cmd: String,
+    pub exec: Exec,
 }
 impl Keybinding {
-    fn new<S: AsRef<str>>(key_combination: &[Key], cmd: S) -> Self {
+    fn new(key_combination: &[Key], exec: Exec) -> Self {
         Self {
             key_combination: key_combination.to_vec(),
-            cmd: cmd.as_ref().to_string(),
+            exec,
         }
     }
 }
@@ -40,7 +61,9 @@ impl<P: AsRef<Path>> Cfg<P> {
                 }
             } else if Self::is_cmd(&line) && !was_cmd && was_keybinding {
                 current_cmd = line.trim().to_string();
-                keybindings.push(Keybinding::new(&current_kb, &current_cmd));
+                if let Some(exec) = Exec::new(&current_cmd) {
+                    keybindings.push(Keybinding::new(&current_kb, exec));
+                }
                 current_kb.clear();
                 current_cmd.clear();
                 was_cmd = true;
@@ -61,8 +84,5 @@ impl<P: AsRef<Path>> Cfg<P> {
     pub fn parse_keybinding(line: &str) -> Vec<Key> {
         let keys: Vec<&str> = line.split('+').map(|k| k.trim()).collect();
         keys.iter().map(|k| Key::from(*k)).collect()
-    }
-    pub fn parse_cmd(line: &str) {
-        println!("cmd: {}", &line);
     }
 }
