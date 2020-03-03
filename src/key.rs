@@ -151,7 +151,7 @@ impl Key {
             26 => LSquareBracket,
             27 => RSquareBracket,
             28 => Return,
-            29 => LCtrl,
+            29 => Ctrl, // LCtrl
             30 => A,
             31 => S,
             32 => D,
@@ -164,7 +164,7 @@ impl Key {
             39 => SemiColon,
             40 => Apostrophe,
             41 => Tick,
-            42 => LShift,
+            42 => Shift, // LShift
             43 => BackSlash,
             44 => Z,
             45 => X,
@@ -176,8 +176,8 @@ impl Key {
             51 => Comma,
             52 => Dot,
             53 => Slash,
-            54 => RShift,
-            56 => LAlt,
+            54 => Shift, // RShift
+            56 => Alt,   // LAlt
             57 => Space,
             59 => F1,
             60 => F2,
@@ -191,8 +191,8 @@ impl Key {
             68 => F10,
             69 => F11,
             70 => F12,
-            97 => RCtrl,
-            100 => RAlt,
+            97 => Ctrl, // RCtrl
+            100 => Alt, // RAlt
             103 => Up,
             105 => Left,
             106 => Right,
