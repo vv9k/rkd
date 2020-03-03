@@ -62,10 +62,12 @@ impl<P: AsRef<Path>> Cfg<P> {
         let mut was_cmd = false;
         lines.for_each(|line| {
             if Self::is_keybinding(&line) && !was_keybinding {
-                current_kb = Self::parse_keybinding(&line);
-                was_keybinding = true;
-                if was_cmd {
-                    was_cmd = false;
+                if let Some(kb) = Self::parse_keybinding(&line) {
+                    current_kb = kb;
+                    was_keybinding = true;
+                    if was_cmd {
+                        was_cmd = false;
+                    }
                 }
             } else if Self::is_cmd(&line) && !was_cmd && was_keybinding {
                 current_cmd = line.trim().to_string();
@@ -89,8 +91,29 @@ impl<P: AsRef<Path>> Cfg<P> {
         line.starts_with(' ') || line.starts_with('\t')
     }
 
-    pub fn parse_keybinding(line: &str) -> Vec<Key> {
+    pub fn parse_keybinding(line: &str) -> Option<Vec<Key>> {
+        use self::Key::*;
         let keys: Vec<&str> = line.split('+').map(|k| k.trim()).collect();
-        keys.iter().map(|k| Key::from(*k)).collect()
+        let mut parsed_keys = Vec::new();
+        for (i, key) in keys.iter().enumerate() {
+            let k = Key::from(*key);
+            let parsed_key = if i == 0 {
+                match k {
+                    Alt | Shift | Ctrl | Super => k,
+                    key => {
+                        error!(
+                            "Unsupported key '{:?}' as modifier. Ignoring keybinding {}",
+                            key, line
+                        );
+                        return None;
+                    }
+                }
+            } else {
+                k
+            };
+
+            parsed_keys.push(parsed_key);
+        }
+        Some(parsed_keys)
     }
 }
