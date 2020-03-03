@@ -73,57 +73,6 @@ pub fn read_input_devices() -> Result<Vec<Keyboard>, std::io::Error> {
         .collect())
 }
 
-pub fn listen(mut event_file: File, keybindings: Arc<Mutex<Keybindings>>) {
-    let mut buf: [u8; SIZE_OF_INPUT_EVENT] = [0; SIZE_OF_INPUT_EVENT];
-    let mut key_combination: Vec<Key> = Vec::new();
-    loop {
-        let num_of_bytes = event_file
-            .read(&mut buf)
-            .unwrap_or_else(|e| panic!("{}", e));
-
-        if num_of_bytes != SIZE_OF_INPUT_EVENT {
-            panic!("Error while reading from device file");
-        }
-
-        match InputEvent::new(&buf) {
-            Ok(event) => {
-                if event.is_key_event() {
-                    if event.is_key_press() {
-                        let k = event.as_enum();
-                        trace!("Pressed {:?}", k);
-                        key_combination.push(k);
-                    } else if event.is_key_release() {
-                        let k = event.as_enum();
-                        trace!("Released {:?}", k);
-                        let mut remove_idx = 0;
-                        let mut remove = false;
-                        for (i, key) in key_combination.iter().enumerate() {
-                            if *key == k {
-                                remove_idx = i;
-                                remove = true;
-                                break;
-                            }
-                        }
-                        if remove {
-                            key_combination.remove(remove_idx);
-                        }
-                    }
-                    let mut keybindings = keybindings.lock().unwrap();
-                    for kb in keybindings.iter_mut() {
-                        let is_key_combo = kb.key_combination == key_combination;
-                        if is_key_combo {
-                            info!("running cmd {:?}", kb.exec);
-                            kb.exec.run().expect("failed to execute cmd");
-                        }
-                    }
-                    trace!("Current key combination: {:?}", key_combination);
-                }
-            }
-            Err(e) => error!("Error: failed parsing InputEvent - {}", e),
-        }
-    }
-}
-
 #[derive(Debug)]
 #[repr(C)]
 pub struct InputEvent {
