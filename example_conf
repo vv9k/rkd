@@ -1,0 +1,56 @@
+# Terminal
+super + return
+	termite
+
+# App launcher
+super + d
+	rofi -show combi
+
+# Restart sxhkd
+super + s
+	pkill -USR1 -x sxhkd
+
+# Lockscreen
+ctrl + alt + l
+	i3lock -t -i /home/wojtek/wallpapers/lilac.png
+
+# close app
+super + q
+	bspc node -c
+super + shift + q
+	bspc node -k
+super + 1
+	bspc desktop -f ^1 && bspc desktop -f ^4
+super + 2
+	bspc desktop -f ^2 && bspc desktop -f ^5
+super + 3
+	bspc desktop -f ^3 && bspc desktop -f ^6
+
+## toggle beetwen pseudo-tiled & tiled
+super + p
+    bspc node -t pseudo_tiled
+
+## toggle beetwen floating & tiled
+super + space
+    bspc node -t floating
+
+## just in case you want to go back to tiled mode but the toggle keybind doesn't work
+super + t
+	bspc node -t tiled
+
+super + shift + left
+	bspc node -m west
+super + shift + right
+	bspc node -m east
+super + shift + up
+	bspc node -m north
+super + shift + down
+	bspc node -m south
+super + left
+	bspc node -f west
+super + right
+	bspc node -f east
+super + up
+	bspc node -f north
+super + down
+	bspc node -f south
