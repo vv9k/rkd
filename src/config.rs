@@ -4,20 +4,28 @@ use super::*;
 pub struct Exec {
     cmd: Command,
     args: Vec<String>,
+    _first_launch: bool,
 }
 impl Exec {
     pub fn new<S: AsRef<str>>(cmd: S) -> Option<Exec> {
         let mut _cmd = cmd.as_ref().split(' ');
         if let Some(cmd) = _cmd.next() {
+            trace!("{:?}", _cmd);
             return Some(Exec {
                 cmd: Command::new(cmd),
                 args: _cmd.map(|arg| arg.to_string()).collect(),
+                _first_launch: true,
             });
         }
         None
     }
     pub fn run(&mut self) -> io::Result<Child> {
-        self.cmd.args(&self.args).spawn()
+        if self._first_launch {
+            self._first_launch = false;
+            self.cmd.args(&self.args).spawn()
+        } else {
+            self.cmd.spawn()
+        }
     }
 }
 
