@@ -94,15 +94,17 @@ pub fn listen(mut event_file: File, keybindings: Arc<Mutex<Keybindings>>) {
                             key_combination.remove(remove_idx);
                         }
                     }
-                    let mut keybindings = keybindings.lock().unwrap();
-                    for kb in keybindings.iter_mut() {
-                        let is_key_combo = kb.key_combination == key_combination;
-                        if is_key_combo {
-                            info!("running cmd {:?}", kb.exec);
-                            kb.exec.run().expect("failed to execute cmd");
-                        }
-                    }
                     trace!("Current key combination: {:?}", key_combination);
+
+                    match keybindings.lock() {
+                        Ok(mut keybindings) => {
+                            if let Some(exec) = keybindings.get_mut(&key_combination) {
+                                info!("running cmd {:?}", exec);
+                                exec.run().expect("failed to execute cmd");
+                            }
+                        }
+                        Err(e) => error!("faild to aquire lock for keybindings - {}", e),
+                    }
                 }
             }
             Err(e) => error!("Error: failed parsing InputEvent - {}", e),

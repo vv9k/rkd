@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Exec {
@@ -29,20 +30,7 @@ impl Exec {
     }
 }
 
-#[derive(Debug)]
-pub struct Keybinding {
-    pub key_combination: Vec<Key>,
-    pub exec: Exec,
-}
-impl Keybinding {
-    fn new(key_combination: &[Key], exec: Exec) -> Self {
-        Self {
-            key_combination: key_combination.to_vec(),
-            exec,
-        }
-    }
-}
-pub type Keybindings = Vec<Keybinding>;
+pub type Keybindings = HashMap<Vec<Key>, Exec>;
 
 #[derive(Clone)]
 pub struct Cfg<P: AsRef<Path>> {
@@ -55,7 +43,7 @@ impl<P: AsRef<Path>> Cfg<P> {
     pub fn parse(&self) -> Result<Keybindings, Box<dyn std::error::Error>> {
         let file_content = fs::read_to_string(self.cfg_file.as_ref())?;
         let lines = file_content.split('\n');
-        let mut keybindings = Vec::new();
+        let mut keybindings = HashMap::new();
         let mut current_kb = Vec::new();
         let mut current_cmd = String::new();
         let mut was_keybinding = false;
@@ -72,7 +60,7 @@ impl<P: AsRef<Path>> Cfg<P> {
             } else if Self::is_cmd(&line) && !was_cmd && was_keybinding {
                 current_cmd = line.trim().to_string();
                 if let Some(exec) = Exec::new(&current_cmd) {
-                    keybindings.push(Keybinding::new(&current_kb, exec));
+                    keybindings.insert(current_kb.clone(), exec);
                 }
                 current_kb.clear();
                 current_cmd.clear();
@@ -80,7 +68,7 @@ impl<P: AsRef<Path>> Cfg<P> {
                 was_keybinding = false;
             }
         });
-        println!("{:?}", keybindings);
+        info!("{:?}", keybindings);
         Ok(keybindings)
     }
 

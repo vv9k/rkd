@@ -1,4 +1,4 @@
-#[derive(Clone,Debug,PartialEq)]
+#[derive(Clone,Debug,PartialEq,Eq,Hash)]
 #[rustfmt::skip]
 pub enum Key {
     Num0,
