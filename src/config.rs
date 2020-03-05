@@ -1,5 +1,5 @@
 use super::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug)]
 pub struct Exec {
@@ -122,6 +122,26 @@ impl<P: AsRef<Path>> Cfg<P> {
                 }
             }
         }
-        Some(parsed_keys)
+        //ensure all elements are unique
+        if Self::check_keys_unique(&parsed_keys) {
+            Some(parsed_keys)
+        } else {
+            error!(
+                "failed to parse keybinding '{:?}' - all keys have to be unique in a keybinding",
+                &parsed_keys
+            );
+            None
+        }
+    }
+
+    // Checks if all the keys are unique
+    fn check_keys_unique(keys: &[Key]) -> bool {
+        let mut unique = HashSet::new();
+        for k in keys {
+            if !unique.insert(k) {
+                return false;
+            }
+        }
+        true
     }
 }
