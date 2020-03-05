@@ -1,3 +1,4 @@
+#![feature(or_patterns)]
 pub mod config;
 pub mod input;
 pub mod key;

@@ -1,6 +1,8 @@
+use std::io::{Error, ErrorKind};
 #[derive(Clone,Debug,PartialEq,Eq,Hash)]
 #[rustfmt::skip]
 pub enum Key {
+    // Shift mapped keys
     Num0,
     Num1,
     Num2,
@@ -13,111 +15,31 @@ pub enum Key {
     Num9,
     Dash,
     Tick,
-    Eq_,
+    Equal,
     Dot,
     Comma,
     Slash,
     SemiColon,
     Apostrophe,
     BackSlash,
-    LSquareBracket, RSquareBracket,
-    RAlt, LAlt,
-    Alt,
-    RCtrl, LCtrl,
-    Ctrl,
-    RShift, LShift,
-    Shift,
+    LSquareBracket,
+    RSquareBracket,
+    A, B, C, D, E, F, G, H, I, J, K, L, M,
+    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+
+    // Unique keys
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    Up, Down, Left, Right,
+    RAlt, LAlt, Alt,
+    RCtrl, LCtrl, Ctrl,
+    RShift, LShift, Shift,
     Super,
     Esc,
     Backspace,
     Return,
     Space,
     Tab,
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-    Up, Down, Left, Right,
     UK
-}
-impl From<&str> for Key {
-    fn from(token: &str) -> Self {
-        use self::Key::*;
-        match token.to_lowercase().as_ref() {
-            "0" => Num0,
-            "1" => Num1,
-            "2" => Num2,
-            "3" => Num3,
-            "4" => Num4,
-            "5" => Num5,
-            "6" => Num6,
-            "7" => Num7,
-            "8" => Num8,
-            "9" => Num9,
-            "-" => Dash,
-            "`" => Tick,
-            "=" => Eq_,
-            "." => Dot,
-            "," => Comma,
-            "/" => Slash,
-            ";" => SemiColon,
-            "'" => Apostrophe,
-            "\\" => BackSlash,
-            "[" => LSquareBracket,
-            "]" => RSquareBracket,
-            "alt" => Alt,
-            "ctrl" => Ctrl,
-            "shift" => Shift,
-            "super" => Super,
-            "esc" => Esc,
-            "backspace" => Backspace,
-            "return" => Return,
-            "space" => Space,
-            "tab" => Tab,
-            "a" => A,
-            "b" => B,
-            "c" => C,
-            "d" => D,
-            "e" => E,
-            "f" => F,
-            "g" => G,
-            "h" => H,
-            "i" => I,
-            "j" => J,
-            "k" => K,
-            "l" => L,
-            "m" => M,
-            "n" => N,
-            "o" => O,
-            "p" => P,
-            "q" => Q,
-            "r" => R,
-            "s" => S,
-            "t" => T,
-            "u" => U,
-            "v" => V,
-            "w" => W,
-            "x" => X,
-            "y" => Y,
-            "z" => Z,
-            "f1" => F1,
-            "f2" => F2,
-            "f3" => F3,
-            "f4" => F4,
-            "f5" => F5,
-            "f6" => F6,
-            "f7" => F7,
-            "f8" => F8,
-            "f9" => F9,
-            "f10" => F10,
-            "f11" => F11,
-            "f12" => F12,
-            "up" => Up,
-            "down" => Down,
-            "left" => Left,
-            "right" => Right,
-            _ => UK,
-        }
-    }
 }
 impl Key {
     pub fn from_code(code: u16) -> Self {
@@ -135,7 +57,7 @@ impl Key {
             10 => Num9,
             11 => Num0,
             12 => Dash,
-            13 => Eq_,
+            13 => Equal,
             14 => Backspace,
             15 => Tab,
             16 => Q,
@@ -200,5 +122,133 @@ impl Key {
             125 => Super,
             _ => UK,
         }
+    }
+    pub fn from_str(token: &str, was_shift: bool) -> Result<Vec<Self>, std::io::Error> {
+        use self::Key::*;
+        let mut parsed_keys = Vec::new();
+        let lowercased_token = token.to_lowercase();
+        // all keys that dont have their coresponding shift version
+        let is_unique = match lowercased_token.as_ref() {
+            "alt" | "ctrl" | "super" | "shift" | "esc" | "backspace" | "return" | "space"
+            | "tab" | "f1" | "f2" | "f3" | "f4" | "f5" | "f6" | "f7" | "f8" | "f9" | "f10"
+            | "f11" | "f12" | "up" | "down" | "left" | "right" => true,
+            _ => false,
+        };
+        if is_unique {
+            match lowercased_token.as_ref() {
+                "alt" => parsed_keys.push(Alt),
+                "ctrl" => parsed_keys.push(Ctrl),
+                "shift" => parsed_keys.push(Shift),
+                "super" => parsed_keys.push(Super),
+                "esc" => parsed_keys.push(Esc),
+                "backspace" => parsed_keys.push(Backspace),
+                "return" => parsed_keys.push(Return),
+                "space" => parsed_keys.push(Space),
+                "tab" => parsed_keys.push(Tab),
+                "f1" => parsed_keys.push(F1),
+                "f2" => parsed_keys.push(F2),
+                "f3" => parsed_keys.push(F3),
+                "f4" => parsed_keys.push(F4),
+                "f5" => parsed_keys.push(F5),
+                "f6" => parsed_keys.push(F6),
+                "f7" => parsed_keys.push(F7),
+                "f8" => parsed_keys.push(F8),
+                "f9" => parsed_keys.push(F9),
+                "f10" => parsed_keys.push(F10),
+                "f11" => parsed_keys.push(F11),
+                "f12" => parsed_keys.push(F12),
+                "up" => parsed_keys.push(Up),
+                "down" => parsed_keys.push(Down),
+                "left" => parsed_keys.push(Left),
+                "right" => parsed_keys.push(Right),
+                // We exhaust all the options so this branch is unreachable
+                _ => unreachable!(),
+            }
+        } else {
+            // All shift modified tokens are single characters
+            if let Some(ch) = token.chars().next() {
+                let is_shift_modified = match ch {
+                    '!'
+                    | '@'
+                    | '#'
+                    | '$'
+                    | '%'
+                    | '^'
+                    | '&'
+                    | '*'
+                    | '('
+                    | ')'
+                    | '_'
+                    | '+'
+                    | '<'
+                    | '>'
+                    | '?'
+                    | ':'
+                    | '\"'
+                    | '|'
+                    | '{'
+                    | '}'
+                    | '~'
+                    | 'A'..='Z' => true,
+                    _ => false,
+                };
+                if is_shift_modified && was_shift {
+                    return Err(Error::new(ErrorKind::InvalidData, "error while parsing - Shift modified key in keybinding right after shift modifier key"));
+                } else if is_shift_modified {
+                    parsed_keys.push(Shift);
+                }
+                match ch {
+                    '`' | '~' => parsed_keys.push(Tick),
+                    '0' | ')' => parsed_keys.push(Num0),
+                    '1' | '!' => parsed_keys.push(Num1),
+                    '2' | '@' => parsed_keys.push(Num2),
+                    '3' | '#' => parsed_keys.push(Num3),
+                    '4' | '$' => parsed_keys.push(Num4),
+                    '5' | '%' => parsed_keys.push(Num5),
+                    '6' | '^' => parsed_keys.push(Num6),
+                    '7' | '&' => parsed_keys.push(Num7),
+                    '8' | '*' => parsed_keys.push(Num8),
+                    '9' | '(' => parsed_keys.push(Num9),
+                    '-' | '_' => parsed_keys.push(Dash),
+                    '=' | '+' => parsed_keys.push(Equal),
+                    '.' | '>' => parsed_keys.push(Dot),
+                    ',' | '<' => parsed_keys.push(Comma),
+                    '/' | '?' => parsed_keys.push(Slash),
+                    ';' | ':' => parsed_keys.push(SemiColon),
+                    '\'' | '"' => parsed_keys.push(Apostrophe),
+                    '\\' | '|' => parsed_keys.push(BackSlash),
+                    '[' | '{' => parsed_keys.push(LSquareBracket),
+                    ']' | '}' => parsed_keys.push(RSquareBracket),
+                    'a' | 'A' => parsed_keys.push(A),
+                    'b' | 'B' => parsed_keys.push(B),
+                    'c' | 'C' => parsed_keys.push(C),
+                    'd' | 'D' => parsed_keys.push(D),
+                    'e' | 'E' => parsed_keys.push(E),
+                    'f' | 'F' => parsed_keys.push(F),
+                    'g' | 'G' => parsed_keys.push(G),
+                    'h' | 'H' => parsed_keys.push(H),
+                    'i' | 'I' => parsed_keys.push(I),
+                    'j' | 'J' => parsed_keys.push(J),
+                    'k' | 'K' => parsed_keys.push(K),
+                    'l' | 'L' => parsed_keys.push(L),
+                    'm' | 'M' => parsed_keys.push(M),
+                    'n' | 'N' => parsed_keys.push(N),
+                    'o' | 'O' => parsed_keys.push(O),
+                    'p' | 'P' => parsed_keys.push(P),
+                    'q' | 'Q' => parsed_keys.push(Q),
+                    'r' | 'R' => parsed_keys.push(R),
+                    's' | 'S' => parsed_keys.push(S),
+                    't' | 'T' => parsed_keys.push(T),
+                    'u' | 'U' => parsed_keys.push(U),
+                    'v' | 'V' => parsed_keys.push(V),
+                    'w' | 'W' => parsed_keys.push(W),
+                    'x' | 'X' => parsed_keys.push(X),
+                    'y' | 'Y' => parsed_keys.push(Y),
+                    'z' | 'Z' => parsed_keys.push(Z),
+                    _ => parsed_keys.push(UK),
+                }
+            }
+        }
+        Ok(parsed_keys)
     }
 }

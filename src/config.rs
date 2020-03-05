@@ -9,9 +9,9 @@ pub struct Exec {
 }
 impl Exec {
     pub fn new<S: AsRef<str>>(cmd: S) -> Option<Exec> {
+        trace!("Creating exec instance from '{}'", cmd.as_ref());
         let mut _cmd = cmd.as_ref().split(' ');
         if let Some(cmd) = _cmd.next() {
-            trace!("{:?}", _cmd);
             return Some(Exec {
                 cmd: Command::new(cmd),
                 args: _cmd.map(|arg| arg.to_string()).collect(),
@@ -83,24 +83,44 @@ impl<P: AsRef<Path>> Cfg<P> {
         use self::Key::*;
         let keys: Vec<&str> = line.split('+').map(|k| k.trim()).collect();
         let mut parsed_keys = Vec::new();
+        let mut was_shift = false;
         for (i, key) in keys.iter().enumerate() {
-            let k = Key::from(*key);
-            let parsed_key = if i == 0 {
-                match k {
-                    Alt | Shift | Ctrl | Super => k,
-                    key => {
-                        error!(
-                            "Unsupported key '{:?}' as modifier. Ignoring keybinding {}",
-                            key, line
-                        );
-                        return None;
+            match Key::from_str(*key, was_shift) {
+                Ok(k) => {
+                    // First token has to be a modifier key
+                    if i == 0 {
+                        match &k[..] {
+                            k @ ([Shift, ..] | [Alt] | [Ctrl] | [Super]) => {
+                                if k[0] == Shift && k.len() == 1 {
+                                    was_shift = true;
+                                }
+                                k.iter().for_each(|key| parsed_keys.push(key.clone()))
+                            }
+                            _ => return None,
+                        }
+                    } else {
+                        match &k[..] {
+                            k @ [Shift, ..] if k.len() == 1 => {
+                                if was_shift && k[0] == Shift {
+                                    error!(
+                                        "Failed parsing keybinding '{}' - double Shift modifier",
+                                        line
+                                    );
+                                    return None;
+                                } else {
+                                    was_shift = false;
+                                }
+                                parsed_keys.push(k[0].clone());
+                            }
+                            keys => keys.iter().for_each(|key| parsed_keys.push(key.clone())),
+                        }
                     }
                 }
-            } else {
-                k
-            };
-
-            parsed_keys.push(parsed_key);
+                Err(e) => {
+                    error!("Failed paring keybinding '{}' - {}", line, e);
+                    return None;
+                }
+            }
         }
         Some(parsed_keys)
     }
