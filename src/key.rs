@@ -1,5 +1,4 @@
-use std::io::{Error, ErrorKind};
-#[derive(Clone,Debug,PartialEq,Eq,Hash)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 #[rustfmt::skip]
 pub enum Key {
     // Shift mapped keys
@@ -123,7 +122,7 @@ impl Key {
             _ => UK,
         }
     }
-    pub fn from_str(token: &str, was_shift: bool) -> Result<Vec<Self>, std::io::Error> {
+    pub fn from_str(token: &str) -> Vec<Self> {
         use self::Key::*;
         let mut parsed_keys = Vec::new();
         let lowercased_token = token.to_lowercase();
@@ -192,9 +191,7 @@ impl Key {
                     | 'A'..='Z' => true,
                     _ => false,
                 };
-                if is_shift_modified && was_shift {
-                    return Err(Error::new(ErrorKind::InvalidData, "error while parsing - Shift modified key in keybinding right after shift modifier key"));
-                } else if is_shift_modified {
+                if is_shift_modified {
                     parsed_keys.push(Shift);
                 }
                 match ch {
@@ -249,6 +246,6 @@ impl Key {
                 }
             }
         }
-        Ok(parsed_keys)
+        parsed_keys
     }
 }

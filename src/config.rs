@@ -82,66 +82,58 @@ impl<P: AsRef<Path>> Cfg<P> {
     pub fn parse_keybinding(line: &str) -> Option<Vec<Key>> {
         use self::Key::*;
         let keys: Vec<&str> = line.split('+').map(|k| k.trim()).collect();
-        let mut parsed_keys = Vec::new();
-        let mut was_shift = false;
+        let mut parsed_keys = HashSet::new();
+
         for (i, key) in keys.iter().enumerate() {
-            match Key::from_str(*key, was_shift) {
-                Ok(k) => {
-                    // First token has to be a modifier key
-                    if i == 0 {
-                        match &k[..] {
-                            k @ ([Shift, ..] | [Alt] | [Ctrl] | [Super]) => {
-                                if k[0] == Shift && k.len() == 1 {
-                                    was_shift = true;
-                                }
-                                k.iter().for_each(|key| parsed_keys.push(key.clone()))
+            let k = Key::from_str(*key);
+            // First token has to be a modifier key
+            if i == 0 {
+                match &k[..] {
+                    k @ ([Shift, ..] | [Alt] | [Ctrl] | [Super]) => {
+                        for key in k {
+                            if !parsed_keys.insert(key.clone()) {
+                                error!(
+                                    "failed to parse keybinding '{}' - all keys have to be unique in a keybinding",
+                                    line
+                                );
+                                return None;
                             }
-                            _ => return None,
-                        }
-                    } else {
-                        match &k[..] {
-                            k @ [Shift, ..] if k.len() == 1 => {
-                                if was_shift && k[0] == Shift {
-                                    error!(
-                                        "Failed parsing keybinding '{}' - double Shift modifier",
-                                        line
-                                    );
-                                    return None;
-                                } else {
-                                    was_shift = false;
-                                }
-                                parsed_keys.push(k[0].clone());
-                            }
-                            keys => keys.iter().for_each(|key| parsed_keys.push(key.clone())),
                         }
                     }
+                    _ => {
+                        error!("failed to parse keybinding '{}' - first key has to be a modifier (Alt | Shift | Ctrl | Super)", line);
+                        return None;
+                    }
                 }
-                Err(e) => {
-                    error!("Failed paring keybinding '{}' - {}", line, e);
-                    return None;
+            } else {
+                for key in k {
+                    if !parsed_keys.insert(key.clone()) {
+                        error!(
+                            "failed to parse keybinding '{}' - all keys have to be unique in a keybinding",
+                            line
+                        );
+                        return None;
+                    }
                 }
             }
         }
-        //ensure all elements are unique
-        if Self::check_keys_unique(&parsed_keys) {
-            Some(parsed_keys)
-        } else {
-            error!(
-                "failed to parse keybinding '{:?}' - all keys have to be unique in a keybinding",
-                &parsed_keys
-            );
-            None
-        }
+        Some(parsed_keys.iter().map(|k| *k).collect())
     }
 
-    // Checks if all the keys are unique
-    fn check_keys_unique(keys: &[Key]) -> bool {
-        let mut unique = HashSet::new();
-        for k in keys {
-            if !unique.insert(k) {
-                return false;
-            }
-        }
-        true
+    fn is_valid_keybinding(keys: &[Key]) -> bool {
+        // This function should check if each keybinding consists
+        // of at least one modifier key and one other key
+
+        unimplemented!();
+    }
+
+    fn has_modifiers_after_key(keys: &[Key]) -> bool {
+        // This function should check if there are modifier keys
+        // after action key.
+        //
+        // For example:
+        // [Shift, k, Ctrl] should return false
+
+        unimplemented!();
     }
 }
