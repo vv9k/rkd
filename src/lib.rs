@@ -76,7 +76,7 @@ pub fn listen(mut event_file: File, keybindings: Arc<Mutex<Keybindings>>) {
                 if event.is_key_event() {
                     if event.is_key_press() {
                         let k = event.as_enum();
-                        trace!("Pressed {:?}", k);
+                        trace!("Pressed {:?}, key_code: {}", k, event.code);
                         key_combination.push(k);
                     } else if event.is_key_release() {
                         let k = event.as_enum();
