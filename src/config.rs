@@ -81,65 +81,90 @@ impl<P: AsRef<Path>> Cfg<P> {
 
     pub fn parse_keybinding(line: &str) -> Option<Vec<Key>> {
         trace!("parsing keybinding from {}", line);
-        use self::Key::*;
         let keys: Vec<&str> = line.split('+').map(|k| k.trim()).collect();
         let mut parsed_keys = HashSet::new();
 
-        for (i, key) in keys.iter().enumerate() {
-            let k = Key::from_str(*key);
-            // First token has to be a modifier key
-            if i == 0 {
-                match &k[..] {
-                    k @ ([Shift, ..] | [Alt] | [Ctrl] | [Super]) => {
-                        for key in k {
-                            parsed_keys.insert(key.clone());
-                        }
-                    }
-                    k
-                    @
-                    ([XF86AudioMute]
-                    | [XF86AudioNext]
-                    | [XF86AudioPlay]
-                    | [XF86AudioPrev]
-                    | [XF86AudioStop]
-                    | [XF86AudioLowerVolume]
-                    | [XF86AudioRaiseVolume]) => {
-                        parsed_keys.insert(k[0].clone());
-                    }
-                    _ => {
-                        error!("failed to parse keybinding '{}' - first key has to be a modifier (Alt | Shift | Ctrl | Super)", line);
-                        return None;
-                    }
-                }
-            } else {
-                for key in k {
-                    if !parsed_keys.insert(key.clone()) {
-                        error!(
+        for key in keys {
+            let k = Key::from_str(key);
+            for key in k {
+                if !parsed_keys.insert(key.clone()) {
+                    error!(
                             "failed to parse keybinding '{}' - all keys have to be unique in a keybinding",
                             line
                         );
-                        return None;
-                    }
+                    return None;
                 }
             }
         }
-        Some(parsed_keys.iter().map(|k| *k).collect())
+        if Self::is_valid_keybinding(&parsed_keys.iter().map(|k| *k).collect::<Vec<Key>>()) {
+            Some(parsed_keys.iter().map(|k| *k).collect())
+        } else {
+            error!("invalid keybinding {:?}", &parsed_keys);
+            None
+        }
     }
 
     fn is_valid_keybinding(keys: &[Key]) -> bool {
-        // This function should check if each keybinding consists
-        // of at least one modifier key and one other key
+        let mut is_valid = true;
+        let mut keys_iter = keys.iter();
 
-        unimplemented!();
+        match keys_iter.next() {
+            Some(first) => {
+                if first.is_modifier() {
+                    if keys.len() >= 2 {
+                        for (i, key) in keys[1..].iter().enumerate() {
+                            if i + 1 == keys.len() - 1 {
+                                // if the last key is not an action key the keybinding is invalid
+                                is_valid = key.is_action();
+                            } else {
+                                if !key.is_modifier() {
+                                    return false;
+                                } else {
+                                    continue;
+                                }
+                            }
+                        }
+                    } else {
+                        return false;
+                    }
+                } else {
+                    // If its not a mod key then its only valid
+                    // if its a media control key like XF86AudioRaiseVolume
+                    return first.is_media_control() && keys.len() == 1;
+                }
+            }
+            None => return false,
+        }
+
+        is_valid
     }
+}
 
-    fn has_modifiers_after_key(keys: &[Key]) -> bool {
-        // This function should check if there are modifier keys
-        // after action key.
-        //
-        // For example:
-        // [Shift, k, Ctrl] should return false
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn validates_keybindings() {
+        use self::config::Cfg;
+        use self::Key::*;
+        let keybindings = vec![
+            (vec![Shift, K], true),
+            (vec![Shift], false),
+            (vec![Ctrl, Shift, Num2], true),
+            (vec![Super, Return], true),
+            (vec![Super, A, B], false),
+            (vec![Super, A, Ctrl], false),
+            (vec![Alt, F1], true),
+            (vec![A], false),
+            (vec![XF86AudioRaiseVolume, XF86AudioStop], false),
+            (vec![A, XF86AudioStop], false),
+            (vec![A, Shift], false),
+            (vec![XF86AudioPlay], true),
+        ];
 
-        unimplemented!();
+        keybindings.iter().for_each(|kb| {
+            println!("validating {:?}", kb);
+            assert_eq!(Cfg::<&Path>::is_valid_keybinding(&kb.0), kb.1)
+        });
     }
 }

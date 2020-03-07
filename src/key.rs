@@ -304,4 +304,30 @@ lowervolume"
         }
         parsed_keys
     }
+
+    pub fn is_modifier(self) -> bool {
+        use self::Key::*;
+        match self {
+            Shift | Alt | Super | Ctrl => true,
+            _ => false,
+        }
+    }
+    pub fn is_media_control(self) -> bool {
+        use self::Key::*;
+        match self {
+            XF86AudioMute
+            | XF86AudioNext
+            | XF86AudioPlay
+            | XF86AudioPrev
+            | XF86AudioStop
+            | XF86AudioLowerVolume
+            | XF86AudioRaiseVolume
+            | XF86MonBrightnessUp
+            | XF86MonBrightnessDown => true,
+            _ => false,
+        }
+    }
+    pub fn is_action(self) -> bool {
+        !Self::is_modifier(self)
+    }
 }
