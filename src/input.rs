@@ -2,8 +2,7 @@ use super::*;
 
 #[derive(Debug, PartialEq)]
 pub struct Keyboard {
-    handlers: Vec<String>,
-    name: String,
+    pub name: String,
 }
 impl Keyboard {
     // Parses a Keyboard object from a block read from INPUT_DEVICE_LIST file
@@ -22,42 +21,44 @@ impl Keyboard {
     // B: MSC=10
     // B: LED=7
     //
-    // In this example the file with all interesting events will be located in:
-    //   /dev/input/event2
+    //
     pub fn new(inp: &str) -> Keyboard {
         info!("Parsing keyboard object");
         trace!("From input:\n{}", &inp);
         let lines = inp.split('\n');
-        let mut handlers = Vec::new();
         let mut name = String::new();
 
         for line in lines {
             if line.starts_with(NAME_PREFIX) {
                 name = line[NAME_PREFIX.len()..line.len() - 1].to_string();
-            } else if line.starts_with(HANDLER_PREFIX) {
-                handlers = line[HANDLER_PREFIX.len()..]
-                    .split(' ')
-                    // Only interested in event handlers
-                    .filter(|h| h.starts_with("event"))
-                    .map(|h| h.to_string())
-                    .collect();
             }
         }
-        info!("Found keyboard (name={}, handlers={:?})", name, &handlers);
-        Keyboard { handlers, name }
+        info!("Found keyboard {}", name);
+        Keyboard { name }
     }
     // Attempts to open all event handler files
-    pub fn handlers(&self) -> Vec<Result<File, std::io::Error>> {
+    pub fn handlers(&self) -> Result<Vec<Result<File, std::io::Error>>, std::io::Error> {
         info!("Getting event file handles");
-        self.handlers
-            .iter()
-            .map(|h| {
-                let mut path = PathBuf::from(DEV_INP);
-                path.push(h);
-                trace!("Opening {}", path.as_path().display());
-                File::open(path)
-            })
-            .collect()
+        let mut handlers = Vec::new();
+        let dev_inp_byid = PathBuf::from(DEV_INP_BY_ID);
+
+        let kb = format!("usb-{}", self.name.replace(" ", "_"));
+        trace!("{}", kb);
+        for file in fs::read_dir(&dev_inp_byid)? {
+            if let Ok(f) = file {
+                let p = f.path();
+                if let Some(file_name) = p.as_path().file_name() {
+                    if let Some(file_name) = file_name.to_str() {
+                        if file_name.starts_with(&kb) {
+                            trace!("found {}", file_name);
+                            handlers.push(File::open(&p.as_path()));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(handlers)
     }
 }
 
@@ -155,7 +156,6 @@ B: KEY=1000000000007 ff9f207ac14057ff febeffdfffefffff fffffffffffffffe
 B: MSC=10
 B: LED=7";
         let kb = Keyboard {
-            handlers: vec!["event2".to_string()],
             name: "Logitech G413 Carbon Mechanical Gaming Keyboard".to_string(),
         };
         let parsed_kb = Keyboard::new(&kb_txt);

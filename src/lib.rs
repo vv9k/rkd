@@ -17,13 +17,10 @@ use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-const DEV_INP: &'static str = "/dev/input/";
+const DEV_INP_BY_ID: &'static str = "/dev/input/by-id";
 const INPUT_DEVICE_LIST: &'static str = "/proc/bus/input/devices";
-// When reading the INPUT_DEVICE_LIST file all keyboard devices have
-// EV=120013
 const KEYBOARD_INPUT_ID: &'static str = "120013";
 const NAME_PREFIX: &'static str = "N: Name=\"";
-const HANDLER_PREFIX: &'static str = "H: Handlers=";
 // Each input event consist of exactly 24 bytes (see InputEvent struct)
 const SIZE_OF_INPUT_EVENT: usize = mem::size_of::<InputEvent>();
 const SIZE_OF_ISIZE: usize = mem::size_of::<isize>();
@@ -39,17 +36,24 @@ pub fn run_rkd(keybindings: Keybindings) {
         Ok(keyboards) => {
             let kb = Arc::new(Mutex::new(keybindings));
             for k in keyboards {
-                let handlers = k.handlers();
-                let mut thr_handles = Vec::new();
-                for h in handlers {
-                    let _kb = kb.clone();
-                    let handle = thread::spawn(|| {
-                        listen(h.expect("Error: failed to open input file"), _kb);
-                    });
-                    thr_handles.push(handle);
-                }
-                for h in thr_handles {
-                    h.join().expect("task failed successfully");
+                match k.handlers() {
+                    Ok(handlers) => {
+                        let mut thr_handles = Vec::new();
+                        for h in handlers {
+                            let _kb = kb.clone();
+                            let handle = thread::spawn(|| {
+                                listen(h.expect("Error: failed to open input file"), _kb);
+                            });
+                            thr_handles.push(handle);
+                        }
+                        for h in thr_handles {
+                            h.join().expect("task failed successfully");
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to read handlers for keyboard {} - {}", k.name, e);
+                        std::process::exit(1);
+                    }
                 }
             }
         }
