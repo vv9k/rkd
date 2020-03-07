@@ -42,12 +42,14 @@ pub fn run_rkd(keybindings: Keybindings) {
                         for h in handlers {
                             let _kb = kb.clone();
                             let handle = thread::spawn(|| {
-                                listen(h.expect("Error: failed to open input file"), _kb);
+                                listen(h.expect("failed to open input file"), _kb);
                             });
-                            thr_handles.push(handle);
+                            thr_handles.push((&k.name, handle));
                         }
-                        for h in thr_handles {
-                            h.join().expect("task failed successfully");
+                        for (kb, handle) in thr_handles {
+                            handle.join().map_err(|_| {
+                                error!("failed to join a thread handle for keyboard {}", kb)
+                            });
                         }
                     }
                     Err(e) => {
