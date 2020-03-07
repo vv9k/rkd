@@ -1,3 +1,5 @@
+use super::*;
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq,Hash)]
 #[rustfmt::skip]
 pub enum Key {
@@ -38,7 +40,16 @@ pub enum Key {
     Return,
     Space,
     Tab,
-    UK
+    UK,
+
+    XF86AudioRaiseVolume, XF86AudioLowerVolume,
+    XF86AudioMute,
+    XF86AudioPrev, XF86AudioNext,
+    XF86AudioPlay, XF86AudioStop,
+
+    // Find out the exact key codes of these
+    XF86MonBrightnessUp,
+    XF86MonBrightnessDown,
 }
 impl Key {
     pub fn from_code(code: u16) -> Self {
@@ -118,19 +129,57 @@ impl Key {
             105 => Left,
             106 => Right,
             108 => Down,
+            113 => XF86AudioMute,
+            114 => XF86AudioLowerVolume,
+            115 => XF86AudioRaiseVolume,
+            163 => XF86AudioNext,
+            164 => XF86AudioPlay,
+            165 => XF86AudioPrev,
+            166 => XF86AudioStop,
             125 => Super,
             _ => UK,
         }
     }
     pub fn from_str(token: &str) -> Vec<Self> {
+        trace!("parsing token {}", token);
         use self::Key::*;
         let mut parsed_keys = Vec::new();
         let lowercased_token = token.to_lowercase();
         // all keys that dont have their coresponding shift version
         let is_unique = match lowercased_token.as_ref() {
-            "alt" | "ctrl" | "super" | "shift" | "esc" | "backspace" | "return" | "space"
-            | "tab" | "f1" | "f2" | "f3" | "f4" | "f5" | "f6" | "f7" | "f8" | "f9" | "f10"
-            | "f11" | "f12" | "up" | "down" | "left" | "right" => true,
+            "alt"
+            | "ctrl"
+            | "super"
+            | "shift"
+            | "esc"
+            | "backspace"
+            | "return"
+            | "space"
+            | "tab"
+            | "f1"
+            | "f2"
+            | "f3"
+            | "f4"
+            | "f5"
+            | "f6"
+            | "f7"
+            | "f8"
+            | "f9"
+            | "f10"
+            | "f11"
+            | "f12"
+            | "up"
+            | "down"
+            | "left"
+            | "right"
+            | "xf86audiomute"
+            | "xf86audio
+lowervolume"
+            | "xf86audioraisevolume"
+            | "xf86audionext"
+            | "xf86audioplay"
+            | "xf86audioprev"
+            | "xf86audiostop" => true,
             _ => false,
         };
         if is_unique {
@@ -160,6 +209,13 @@ impl Key {
                 "down" => parsed_keys.push(Down),
                 "left" => parsed_keys.push(Left),
                 "right" => parsed_keys.push(Right),
+                "xf86audiomute" => parsed_keys.push(XF86AudioMute),
+                "xf86audiolowervolume" => parsed_keys.push(XF86AudioLowerVolume),
+                "xf86audioraisevolume" => parsed_keys.push(XF86AudioRaiseVolume),
+                "xf86audionext" => parsed_keys.push(XF86AudioNext),
+                "xf86audioplay" => parsed_keys.push(XF86AudioPlay),
+                "xf86audioprev" => parsed_keys.push(XF86AudioPrev),
+                "xf86audiostop" => parsed_keys.push(XF86AudioStop),
                 // We exhaust all the options so this branch is unreachable
                 _ => unreachable!(),
             }

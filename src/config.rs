@@ -80,6 +80,7 @@ impl<P: AsRef<Path>> Cfg<P> {
     }
 
     pub fn parse_keybinding(line: &str) -> Option<Vec<Key>> {
+        trace!("parsing keybinding from {}", line);
         use self::Key::*;
         let keys: Vec<&str> = line.split('+').map(|k| k.trim()).collect();
         let mut parsed_keys = HashSet::new();
@@ -91,14 +92,19 @@ impl<P: AsRef<Path>> Cfg<P> {
                 match &k[..] {
                     k @ ([Shift, ..] | [Alt] | [Ctrl] | [Super]) => {
                         for key in k {
-                            if !parsed_keys.insert(key.clone()) {
-                                error!(
-                                    "failed to parse keybinding '{}' - all keys have to be unique in a keybinding",
-                                    line
-                                );
-                                return None;
-                            }
+                            parsed_keys.insert(key.clone());
                         }
+                    }
+                    k
+                    @
+                    ([XF86AudioMute]
+                    | [XF86AudioNext]
+                    | [XF86AudioPlay]
+                    | [XF86AudioPrev]
+                    | [XF86AudioStop]
+                    | [XF86AudioLowerVolume]
+                    | [XF86AudioRaiseVolume]) => {
+                        parsed_keys.insert(k[0].clone());
                     }
                     _ => {
                         error!("failed to parse keybinding '{}' - first key has to be a modifier (Alt | Shift | Ctrl | Super)", line);

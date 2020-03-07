@@ -29,6 +29,24 @@ super + Q
 super + shift + q
 	bspc node -k
 
+## Audio controls
+XF86AudioMute
+	pactl set-sink-mute 0 toggle
+XF86AudioRaiseVolume
+	pactl set-sink-volume 0 +5%
+XF86AudioLowerVolume
+	pactl set-sink-volume 0 -5%
+XF86AudioPlay
+	playerctl play
+XF86AudioPause
+	playerctl pause
+XF86AudioNext
+	playerctl next
+
+# you can also write it in any case
+xf86audioprev
+	playerctl prev
+
 ```
 The first key has to be one of `super`|`shift`|`alt`|`ctrl`. The modifier key can be followed by any amount of other mod keys but to actually execute the keybinding on of `[0-9a-z,./;'\\[\]]` has to be pressed.
 
