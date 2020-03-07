@@ -68,51 +68,57 @@ pub fn listen(mut event_file: File, keybindings: Arc<Mutex<Keybindings>>) {
     let mut buf: [u8; SIZE_OF_INPUT_EVENT] = [0; SIZE_OF_INPUT_EVENT];
     let mut key_combination: Vec<Key> = Vec::new();
     loop {
-        let num_of_bytes = event_file
-            .read(&mut buf)
-            .unwrap_or_else(|e| panic!("{}", e));
+        match event_file.read(&mut buf) {
+            Ok(num_of_bytes) => {
+                if num_of_bytes != SIZE_OF_INPUT_EVENT {
+                    error!("invalid input {:?}", &buf);
+                    continue;
+                }
 
-        if num_of_bytes != SIZE_OF_INPUT_EVENT {
-            panic!("Error while reading from device file");
-        }
+                match InputEvent::new(&buf) {
+                    Ok(event) => {
+                        if event.is_key_event() {
+                            if event.is_key_press() {
+                                let k = event.as_enum();
+                                trace!("Pressed {:?}, key_code: {}", k, event.code);
+                                key_combination.push(k);
+                            } else if event.is_key_release() {
+                                let k = event.as_enum();
+                                trace!("Released {:?}", k);
+                                let mut remove_idx = 0;
+                                let mut remove = false;
+                                for (i, key) in key_combination.iter().enumerate() {
+                                    if *key == k {
+                                        remove_idx = i;
+                                        remove = true;
+                                        break;
+                                    }
+                                }
+                                if remove {
+                                    key_combination.remove(remove_idx);
+                                }
+                            }
+                            trace!("Current key combination: {:?}", key_combination);
 
-        match InputEvent::new(&buf) {
-            Ok(event) => {
-                if event.is_key_event() {
-                    if event.is_key_press() {
-                        let k = event.as_enum();
-                        trace!("Pressed {:?}, key_code: {}", k, event.code);
-                        key_combination.push(k);
-                    } else if event.is_key_release() {
-                        let k = event.as_enum();
-                        trace!("Released {:?}", k);
-                        let mut remove_idx = 0;
-                        let mut remove = false;
-                        for (i, key) in key_combination.iter().enumerate() {
-                            if *key == k {
-                                remove_idx = i;
-                                remove = true;
-                                break;
+                            match keybindings.lock() {
+                                Ok(mut keybindings) => {
+                                    if let Some(exec) = keybindings.get_mut(&key_combination) {
+                                        info!("running cmd {:?}", exec);
+                                        exec.run().map_err(|e| {
+                                            error!("failed to execute command - {}", e)
+                                        });
+                                    }
+                                }
+                                Err(e) => error!("faild to aquire lock for keybindings - {}", e),
                             }
                         }
-                        if remove {
-                            key_combination.remove(remove_idx);
-                        }
                     }
-                    trace!("Current key combination: {:?}", key_combination);
-
-                    match keybindings.lock() {
-                        Ok(mut keybindings) => {
-                            if let Some(exec) = keybindings.get_mut(&key_combination) {
-                                info!("running cmd {:?}", exec);
-                                exec.run().expect("failed to execute cmd");
-                            }
-                        }
-                        Err(e) => error!("faild to aquire lock for keybindings - {}", e),
-                    }
+                    Err(e) => error!("Error: failed parsing InputEvent - {}", e),
                 }
             }
-            Err(e) => error!("Error: failed parsing InputEvent - {}", e),
+            Err(e) => {
+                error!("invalid input event - {}", e);
+            }
         }
     }
 }
