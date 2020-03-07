@@ -328,6 +328,6 @@ lowervolume"
         }
     }
     pub fn is_action(self) -> bool {
-        !Self::is_modifier(self)
+        !Self::is_modifier(self) && !Self::is_media_control(self)
     }
 }
