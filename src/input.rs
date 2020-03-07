@@ -37,7 +37,7 @@ impl Keyboard {
         Keyboard { name }
     }
     // Attempts to open all event handler files
-    pub fn handlers(&self) -> Result<Vec<Result<File, std::io::Error>>, std::io::Error> {
+    pub fn handlers(&self) -> io::Result<Vec<io::Result<File>>> {
         info!("Getting event file handles");
         let mut handlers = Vec::new();
         let dev_inp_byid = PathBuf::from(DEV_INP_BY_ID);
@@ -62,7 +62,7 @@ impl Keyboard {
     }
 }
 
-pub fn read_input_devices() -> Result<Vec<Keyboard>, std::io::Error> {
+pub fn read_input_devices() -> io::Result<Vec<Keyboard>> {
     info!("Reading device list from {}", INPUT_DEVICE_LIST);
     let device_list = fs::read_to_string(INPUT_DEVICE_LIST)?;
 
@@ -84,7 +84,7 @@ pub struct InputEvent {
     pub value: i32,
 }
 impl InputEvent {
-    pub fn new(buf: &[u8]) -> Result<InputEvent, std::io::Error> {
+    pub fn new(buf: &[u8]) -> io::Result<InputEvent> {
         let mut rdr = Cursor::new(&buf);
         Ok(InputEvent {
             _tv_sec: rdr

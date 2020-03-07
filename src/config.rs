@@ -40,7 +40,7 @@ impl<P: AsRef<Path>> Cfg<P> {
     pub fn new(cfg_file: P) -> Self {
         Self { cfg_file }
     }
-    pub fn parse(&self) -> Result<Keybindings, Box<dyn std::error::Error>> {
+    pub fn parse(&self) -> io::Result<Keybindings> {
         let file_content = fs::read_to_string(self.cfg_file.as_ref())?;
         let lines = file_content.split('\n');
         let mut keybindings = HashMap::new();
